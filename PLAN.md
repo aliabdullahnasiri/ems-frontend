@@ -49,14 +49,14 @@ Acceptance: login, challenge expiry/replay, refresh failure, logout and session 
 
 ## Phase 3 — Organization, shop and staff context
 
-- [ ] Implement organization list/create/manage and membership administration.
-- [ ] Select an organization through `POST /auth/organizations/{uuid}/select`; bootstrap effective permissions from `GET /auth/context`.
-- [ ] Select a shop from authorized shops; include `shop_id` on relevant EMS requests.
-- [ ] On context change cancel in-flight requests, discard old forms/retry operations, clear tenant data and refetch permissions/settings.
-- [ ] Scope caches by authenticated identity, organization and shop; discard late responses from old contexts.
-- [ ] Implement custom roles, permission assignment and member-role changes through organization-scoped APIs.
-- [ ] Handle protected system roles, inactive memberships and owner-only actions explicitly.
-- [ ] Build settings/shop management and private upload/download components.
+- [x] Implement organization list/create/manage and membership administration.
+- [x] Select an organization through `POST /auth/organizations/{uuid}/select`; bootstrap effective permissions from `GET /auth/context`.
+- [x] Select a shop from authorized shops; include `shop_id` on relevant EMS requests.
+- [x] On context change cancel in-flight requests, discard old forms/retry operations, clear tenant data and refetch permissions/settings.
+- [x] Scope caches by authenticated identity, organization and shop; discard late responses from old contexts.
+- [x] Implement custom roles, permission assignment and member-role changes through organization-scoped APIs.
+- [x] Handle protected system roles, inactive memberships and owner-only actions explicitly.
+- [x] Build settings/shop management and private upload/download components.
 
 Acceptance: switching tenants never displays or submits another tenant's cached financial data; backend denial always takes precedence over UI gates.
 
