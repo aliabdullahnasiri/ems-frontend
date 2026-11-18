@@ -28,19 +28,28 @@ function saveSession(value?: Tokens) {
 // A restored token is only a credential candidate; SessionProvider verifies /auth/me.
 let tokens: Tokens | undefined = readSession();
 let generation = 0;
+let sessionRequests = new AbortController();
 let refreshing: Promise<void> | undefined;
 const listeners = new Set<() => void>();
 export const subscribeSession = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 export const hasSession = () => !!tokens;
 export const sessionVersion = () => generation;
-export function setTokens(value?: Tokens) { tokens = value; saveSession(value); generation++; refreshing = undefined; listeners.forEach(fn => fn()); }
+export function invalidateWorkspace() {
+ sessionRequests.abort();
+ sessionRequests = new AbortController();
+ generation++;
+ refreshing = undefined;
+ listeners.forEach(fn => fn());
+}
+export function setTokens(value?: Tokens) { tokens = value; saveSession(value); invalidateWorkspace(); }
 const base = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
 export async function request<T>(path: string, options: RequestInit = {}, binary = false, anonymous = false): Promise<T> {
  const epoch = generation;
+ const signal = AbortSignal.any([sessionRequests.signal, options.signal || AbortSignal.timeout(30000)]);
  const originalAccess = tokens?.access;
  const headers = new Headers(options.headers);
  if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
- const send = () => { const current = new Headers(headers); if (tokens && !anonymous) current.set('Authorization',`Bearer ${tokens.access}`); return fetch(`${base}${path}`, { ...options, headers: current, signal: options.signal || AbortSignal.timeout(30000) }); };
+ const send = () => { const current = new Headers(headers); if (tokens && !anonymous) current.set('Authorization',`Bearer ${tokens.access}`); return fetch(`${base}${path}`, { ...options, headers: current, signal }); };
  let response: Response;
  try {
   response = await send();
@@ -80,9 +89,14 @@ export async function request<T>(path: string, options: RequestInit = {}, binary
   }
   throw new ApiError(response.status, typeof body.message === 'string' ? body.message : `Request failed (${response.status})`, fields);
  }
- if (binary) return await response.blob() as T;
+ if (binary) {
+  const blob = await response.blob();
+  if (generation !== epoch) throw new ApiError(409,'Workspace changed');
+  return blob as T;
+ }
  if (response.status === 204) return undefined as T;
  const body = await response.json();
+ if (generation !== epoch) throw new ApiError(409,'Workspace changed');
  return body && typeof body === 'object' && 'success' in body && 'data' in body ? body.data : body;
 }
 export function financialIntent<T>(path: string, payload: T) {
