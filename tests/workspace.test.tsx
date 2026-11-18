@@ -8,6 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { Workspace } from "../src/components/shared/Workspace";
 import { SessionProvider } from "../src/context/Session";
@@ -88,6 +89,98 @@ test("a signed-in user without an organization can create and select one", async
   expect(screen.queryByText("Create role")).toBeNull();
 });
 
+test("creating and deactivating a shop refreshes the Shops table", async () => {
+  const org = { id: 1, uuid: "org-1", name: "Kabul Office", is_active: true, owner_id: 8 };
+  const closedShop = { id: 1, uuid: "69213c25-7b4d-4fb4-b989-d17c8326e162", name: "Closed Shop", is_active: false };
+  const newShopUuid = "a7723293-9c14-4527-8b3c-ab4c98b82dfc";
+  const rows = [closedShop];
+  const fetchMock = vi.fn(async (url: string, options: RequestInit) => {
+    const path = url.split("?")[0];
+    if (path.endsWith("/auth/me")) return Response.json({ id: 8 });
+    if (path.endsWith("/auth/context")) return Response.json({
+      organization_id: org.id, membership_id: 1, user_id: 8,
+      permissions: ["settings:read", "settings:update", "attachment:manage"],
+    });
+    if (path.endsWith("/organizations")) return Response.json({ data: [org] });
+    if (path.endsWith("/shops") && options.method === "POST") {
+      const shop = { id: 2, uuid: newShopUuid, name: JSON.parse(String(options.body)).name, is_active: true };
+      rows.push(shop);
+      return Response.json({ data: shop }, { status: 201 });
+    }
+    if (path.endsWith("/files") && options.method === "POST") {
+      return Response.json({ data: { uuid: "uploaded-attachment" } }, { status: 201 });
+    }
+    if (path.endsWith("/shops/" + newShopUuid) && options.method === "PATCH") {
+      rows[1] = { ...rows[1], is_active: false };
+      return Response.json({ data: rows[1] });
+    }
+    if (path.endsWith("/shops")) return Response.json({ data: rows });
+    return Response.json({ data: {} });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  setTokens({ access: "access", refresh: "refresh" });
+  render(<SessionProvider><MaterialControllerProvider><MemoryRouter><Workspace /></MemoryRouter></MaterialControllerProvider></SessionProvider>);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Shops" }));
+  const table = await screen.findByRole("grid", { name: "Shops" });
+  expect(within(table).getByText("Closed Shop")).toBeTruthy();
+  const user = userEvent.setup();
+  const copy = within(table).getByRole("button", { name: "Copy UUID " + closedShop.uuid });
+  expect(copy.textContent).toBe("d17c8326e162");
+  await user.click(copy);
+  expect(await navigator.clipboard.readText()).toBe(closedShop.uuid);
+  expect(within(table).getByText("Inactive")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Create shop" }));
+  const dialog = screen.getByRole("dialog", { name: "Create shop" });
+  fireEvent.change(within(dialog).getByRole("textbox", { name: /Name/ }), { target: { value: "New Kabul Shop" } });
+  const submit = within(dialog).getByRole("button", { name: "Create shop" });
+  fireEvent.click(submit);
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
+  expect(within(submit).getByRole("progressbar")).toBeTruthy();
+  expect(fetchMock.mock.calls.some(([, options]) => options.method === "POST")).toBe(false);
+
+  const refreshedTable = await screen.findByRole("grid", { name: "Shops" });
+  expect(await within(refreshedTable).findByText("New Kabul Shop")).toBeTruthy();
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringMatching(/\/shops$/),
+    expect.objectContaining({ method: "POST", body: '{"name":"New Kabul Shop"}' }),
+  );
+  const newShopRow = within(refreshedTable).getByText("New Kabul Shop").closest('[role="row"]') as HTMLElement;
+  expect(within(newShopRow).getByRole("button", { name: "Shop settings" })).toBeTruthy();
+  fireEvent.click(within(newShopRow).getByRole("button", { name: "Upload private file" }));
+  const uploadDialog = screen.getByRole("dialog", { name: "Upload private file" });
+  const input = within(uploadDialog).getByLabelText("Upload private file");
+  const uploadButton = within(uploadDialog).getByRole("button", { name: "Upload private file" });
+  await user.upload(input, new File([], "empty.pdf", { type: "application/pdf" }));
+  fireEvent.click(uploadButton);
+  expect(within(uploadDialog).getByText("Choose a non-empty file up to 5 MiB.")).toBeTruthy();
+  expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/files"))).toBe(false);
+
+  const file = new File(["%PDF-1.7 receipt"], "receipt.pdf", { type: "application/pdf" });
+  await user.upload(input, file);
+  expect(within(uploadDialog).getByText("receipt.pdf")).toBeTruthy();
+  fireEvent.click(within(uploadDialog).getByRole("button", { name: "Upload private file" }));
+  await screen.findByText("Attachment UUID uploaded-attachment");
+  const upload = fetchMock.mock.calls.find(([url]) => url.endsWith("/files"))?.[1].body as FormData;
+  expect(upload.get("file")).toBe(file);
+  expect(upload.get("shop_uuid")).toBe(newShopUuid);
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Upload private file" })).toBeNull());
+
+  fireEvent.click(within(newShopRow).getByRole("button", { name: "Deactivate shop" }));
+  const deactivateDialog = screen.getByRole("dialog", { name: "Deactivate shop" });
+  expect(within(deactivateDialog).getByText("New Kabul Shop")).toBeTruthy();
+  fireEvent.click(within(deactivateDialog).getByRole("button", { name: "Confirm" }));
+
+  await waitFor(() => {
+    const row = within(screen.getByRole("grid", { name: "Shops" })).getByText("New Kabul Shop").closest('[role="row"]') as HTMLElement;
+    expect(within(row).getByText("Inactive")).toBeTruthy();
+  });
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining("/shops/" + newShopUuid),
+    expect.objectContaining({ method: "PATCH", body: '{"is_active":false}' }),
+  );
+});
+
 test("switching organizations discards a late shop list and old permissions", async () => {
   const organizations = [1, 2].map((id) => ({
     id,
@@ -157,9 +250,8 @@ test("switching organizations discards a late shop list and old permissions", as
   await waitFor(() => expect(selected).toBe(2));
   await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1));
   fireEvent.click(await screen.findByRole("button", { name: "Shops" }));
-  await screen.findByText("Office Two Shop", {
-    selector: 'div[role="combobox"]',
-  });
+  const shops = await screen.findByRole("grid", { name: "Shops" });
+  expect(within(shops).getByText("Office Two Shop")).toBeTruthy();
   resolveOld(
     Response.json({
       data: [
@@ -263,7 +355,7 @@ test('role and member tables replace selectors, support search and paging, and p
   const table = await screen.findByRole('grid', { name: 'Roles' });
   expect(screen.queryByRole('group', { name: 'Organization' })).toBeNull();
   const owner = within(table).getByText('Owner').closest('[role="row"]')!;
-  expect(within(owner).queryByRole('button')).toBeNull();
+  expect(within(owner).getAllByRole('button')).toEqual([within(owner).getByRole('button', { name: 'Copy UUID role-0' })]);
   expect(within(table).getAllByRole('row')).toHaveLength(11);
   fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
   expect(within(table).getByText('Role 11')).toBeTruthy();
@@ -274,8 +366,14 @@ test('role and member tables replace selectors, support search and paging, and p
   const members = await screen.findByRole('grid', { name: 'Members' });
   expect(screen.queryByRole('group', { name: 'Organization' })).toBeNull();
   expect(within(members).getByText('Inactive')).toBeTruthy();
-  const ownerRow = within(members).getByText(ownerUserUuid).closest('[role="row"]')!;
-  expect(within(ownerRow).queryByRole('button')).toBeNull();
+  const user = userEvent.setup();
+  const ownerUuidButton = within(members).getByRole('button', { name: 'Copy UUID ' + ownerUserUuid });
+  expect(ownerUuidButton.textContent).toBe('000000000008');
+  const ownerRow = ownerUuidButton.closest('[role="row"]')!;
+  expect(within(ownerRow).getAllByRole('button')).toEqual([ownerUuidButton]);
+  await user.click(ownerUuidButton);
+  expect(await screen.findByText('UUID copied')).toBeTruthy();
+  expect(await navigator.clipboard.readText()).toBe(ownerUserUuid);
   expect(within(members).getByRole('button', { name: 'Activate member' })).toBeTruthy();
   const userColumn = within(members).getByRole('columnheader', { name: /User UUID/ });
   fireEvent.click(userColumn);
@@ -283,7 +381,7 @@ test('role and member tables replace selectors, support search and paging, and p
   fireEvent.click(userColumn);
   await waitFor(() => expect(userColumn.getAttribute('aria-sort')).toBe('descending'));
   const firstMember = within(members).getAllByRole('row')[1];
-  expect(firstMember.querySelector('[data-field="user_uuid"]')?.textContent).toBe(memberUserUuid);
+  expect(firstMember.querySelector('[data-field="user_uuid"]')?.textContent).toBe('000000000012');
 });
 
 test('custom field validation blocks bad organization slugs, UUIDs, role names, and user UUIDs', async () => {
