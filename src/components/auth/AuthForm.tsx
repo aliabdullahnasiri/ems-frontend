@@ -1,3 +1,4 @@
+import { waitForSubmissionFeedback } from '../../utils/submissionDelay';
 import type { ReactNode } from 'react';
 import { VisibilityOutlined, VisibilityOffOutlined } from '@mui/icons-material';
 import { useRef, useState } from 'react';
@@ -40,7 +41,7 @@ export function AuthForm({fields, onSubmit, label = 'submit', success = 'done', 
    return;
   }
   lock.current = true; setBusy(true); setError(undefined); setDone(false);
-  try { await onSubmit(data); form.reset(); setResetKey(value => value + 1); setVisible({}); setDone(true); } catch (failure) {setError(failure);} finally {lock.current=false;setBusy(false);}
+  try { await waitForSubmissionFeedback(); await onSubmit(data); form.reset(); setResetKey(value => value + 1); setVisible({}); setDone(true); } catch (failure) {setError(failure);} finally {lock.current=false;setBusy(false);}
  }}>
  {fields.map(field => {
   if (field.type === 'hidden') return <input key={field.name} type="hidden" name={field.name} value={field.initial || ''}/>;
