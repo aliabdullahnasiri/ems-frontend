@@ -1,3 +1,4 @@
+import { waitForSubmissionFeedback } from '../../utils/submissionDelay';
 import dayjs from 'dayjs';
 import { DateInput } from '../shared/DateInput';
 import { dateFormat, parseDate } from '../shared/dateValue';
@@ -56,7 +57,7 @@ export function MyProfile() {
     }
     if (!Object.keys(body).length) { setSaved(true); return; }
     lock.current = true; setBusy(true);
-    try { await auth.updateProfile(body); reload(); setSaved(true); }
+    try { await waitForSubmissionFeedback(); await auth.updateProfile(body); reload(); setSaved(true); }
     catch (failure) { if (failure instanceof ApiError) setErrors(failure.fields); setError(failure instanceof Error ? failure.message : t('retry')); }
     finally { lock.current = false; setBusy(false); }
    }}>
@@ -77,7 +78,7 @@ export function MyProfile() {
     <FormInput name="user_name" label={t('user_name')} defaultValue={user?.user_name || ''} maxLength={50} required disabled={busy} error={errors.user_name} autoComplete="username" dir="ltr" onChange={() => setErrors(current => ({ ...current, user_name: '' }))}/>
     <FormInput name="email" label={t('email')} type="email" defaultValue={user?.email || ''} readOnly autoComplete="email" dir="ltr"/>
     {error && <Alert severity="error">{error}</Alert>}{saved && <Alert severity="success">{t('profileSaved')}</Alert>}
-    <Button type="submit" variant="contained" loading={busy} sx={{ minHeight: 48, alignSelf: { sm: 'flex-start' }, minWidth: 160 }}>{t('saveChanges')}</Button>
+    <Button type="submit" variant="contained" loading={busy} disabled={busy} sx={{ minHeight: 48, alignSelf: { sm: 'flex-start' }, minWidth: 160 }}>{t('saveChanges')}</Button>
    </Stack></Paper>
    <Paper data-motion-panel sx={panel}><Stack spacing={2}><ShieldOutlined color="primary"/><Typography component="h2" variant="h6">{t('security')}</Typography><Typography variant="body2" color="text.secondary">{t('manageSecurity')}</Typography><Button component={Link} to="/account/security" variant="outlined">{t('security')}</Button></Stack></Paper>
   </Box>
