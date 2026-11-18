@@ -240,7 +240,8 @@ function OrganizationAdmin({ section, org, grants, owner, reload }: { section: S
   const shop = activeShops.find(shop => shop.uuid === selectedShop) ?? activeShops[0];
   function chooseShop(id: string) { setShop(id); try { sessionStorage.setItem(shopKey, id); } catch { /* Optional storage. */ } invalidateWorkspace(); }
   const memberColumns: GridColDef<MembershipData>[] = [
-    { field: 'user_id', headerName: t('userId'), type: 'number', minWidth: 100, flex: .7, align: 'left', headerAlign: 'left' },
+    { field: 'user_uuid', headerName: t('userUuid'), minWidth: 285, flex: 1.5,
+      renderCell: ({ row }) => <span dir="ltr">{row.user_uuid}</span> },
     { field: 'access', headerName: t('accessLabel'), minWidth: 110, flex: 1, valueGetter: (_, row) => t(row.user_id === org.owner_id ? 'ownerLabel' : 'memberLabel') },
     { field: 'status', headerName: t('statusLabel'), minWidth: 110, flex: 1, valueGetter: (_, row) => t(row.is_active ? 'activeLabel' : 'inactiveLabel'), renderCell: ({ row }) => <StatusBadge active={row.is_active} /> },
     { field: 'created_at', headerName: t('joinedLabel'), type: 'date', minWidth: 140, flex: 1, valueGetter: value => value && !Number.isNaN(Date.parse(value)) ? new Date(value) : null, renderCell: ({ row }) => <DisplayDate value={row.created_at} /> },
@@ -268,7 +269,7 @@ function OrganizationAdmin({ section, org, grants, owner, reload }: { section: S
       fallback={can('organizations.members.read') && !members && <Skeleton variant="rounded" height={180} />}
       renderHeader={search => <SectionHeader title={t('membersLabel')} description={t(descriptions.membersLabel)} actions={<>
         {search}
-        {can('organizations.members.manage') && <ActionDialog title={t('addMember')} icon={<AddRounded />} primary><Edit title={t('addMember')} done={refresh} save={data => write(base + '/members', 'POST', { user_id: Number(field(data, 'user_id')) })}><WorkspaceField required name="user_id" label={t('userId')} helperText={t('userIdHelp')} /></Edit></ActionDialog>}
+        {can('organizations.members.manage') && <ActionDialog title={t('addMember')} icon={<AddRounded />} primary><Edit title={t('addMember')} done={refresh} save={data => write(base + '/members', 'POST', { user_uuid: field(data, 'user_uuid') })}><WorkspaceField required name="user_uuid" label={t('userUuid')} helperText={t('userUuidHelp')} /></Edit></ActionDialog>}
       </>} />} />}
     {section === 'rolesLabel' && <WorkspaceTable key="roles" label={t('rolesLabel')} columns={roleColumns} rows={roles?.data}
       fallback={can('roles:read') && !roles && <Skeleton variant="rounded" height={180} />}
@@ -304,10 +305,10 @@ function MemberActions({ member, org, owner, grants, roles, refresh }: { member:
   if (member.user_id === org.owner_id) return <Typography variant="caption" color="text.secondary">{t('ownerLabel')}</Typography>;
   return <Stack direction="row" sx={{ justifyContent: 'flex-end', gap: .5 }}>
     {can('organizations.members.manage') && <>
-      <ActionDialog title={t(member.is_active ? 'deactivateMember' : 'activateMember')} compact icon={member.is_active ? <PersonOffOutlined /> : <PersonAddAltOutlined />}><Edit title={t(member.is_active ? 'deactivateMember' : 'activateMember')} done={done} save={() => write(base + '/members/' + member.uuid, 'PATCH', { is_active: !member.is_active })}><Typography>{t('memberStatusHelp').replace('{id}', String(member.user_id))}</Typography></Edit></ActionDialog>
-      <ActionDialog title={t('removeMember')} compact icon={<PersonRemoveOutlined />} destructive><Edit title={t('removeMember')} done={done} save={() => write(base + '/members/' + member.uuid, 'DELETE')}><Typography>{t('removeMemberHelp').replace('{id}', String(member.user_id))}</Typography></Edit></ActionDialog>
+      <ActionDialog title={t(member.is_active ? 'deactivateMember' : 'activateMember')} compact icon={member.is_active ? <PersonOffOutlined /> : <PersonAddAltOutlined />}><Edit title={t(member.is_active ? 'deactivateMember' : 'activateMember')} done={done} save={() => write(base + '/members/' + member.uuid, 'PATCH', { is_active: !member.is_active })}><Typography>{t('memberStatusHelp').replace('{id}', member.user_uuid)}</Typography></Edit></ActionDialog>
+      <ActionDialog title={t('removeMember')} compact icon={<PersonRemoveOutlined />} destructive><Edit title={t('removeMember')} done={done} save={() => write(base + '/members/' + member.uuid, 'DELETE')}><Typography>{t('removeMemberHelp').replace('{id}', member.user_uuid)}</Typography></Edit></ActionDialog>
     </>}
-    {owner && member.is_active && can('organizations.update') && <ActionDialog title={t('transferOwner')} compact icon={<ManageAccountsOutlined />}><Edit title={t('transferOwner')} done={done} save={() => write(base, 'PATCH', { owner_id: member.user_id })}><Typography>{t('transferOwnerHelp').replace('{id}', String(member.user_id))}</Typography></Edit></ActionDialog>}
+    {owner && member.is_active && can('organizations.update') && <ActionDialog title={t('transferOwner')} compact icon={<ManageAccountsOutlined />}><Edit title={t('transferOwner')} done={done} save={() => write(base, 'PATCH', { owner_id: member.user_id })}><Typography>{t('transferOwnerHelp').replace('{id}', member.user_uuid)}</Typography></Edit></ActionDialog>}
     {member.is_active && roles && can('roles:assign') && <Assignments path={base + '/members/' + member.uuid + '/roles'} options={roles} mode="roles" />}
   </Stack>;
 }

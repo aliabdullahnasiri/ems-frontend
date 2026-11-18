@@ -37,8 +37,7 @@ export function Edit({ title, children, save, done }: { title: string; children?
     if (!value) return '';
     if ('maxLength' in input && input.maxLength > 0 && value.length > input.maxLength) return t('maximumLength').replace('{count}', String(input.maxLength));
     if (input.name === 'slug' && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) return t('invalidSlug');
-    if (input.name === 'uuid' && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return t('invalidUuid');
-    if (input.name === 'user_id' && (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0)) return t('invalidUserId');
+    if (['uuid', 'user_uuid'].includes(input.name) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return t('invalidUuid');
     if (input.name === 'preferred_language' && !['en', 'fa', 'ps'].includes(value)) return t('invalidLanguage');
     if (input instanceof HTMLInputElement && input.type === 'file' && input.files?.[0] && !['application/pdf', 'image/png', 'image/jpeg'].includes(input.files[0].type)) return t('invalidFileType');
     return '';

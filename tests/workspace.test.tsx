@@ -211,6 +211,9 @@ test("delete confirmation supports cancellation, keeps errors visible, and refre
   expect(screen.queryByRole("radio")).toBeNull();
 });
 
+const ownerUserUuid = '00000000-0000-4000-8000-000000000008';
+const memberUserUuid = '00000000-0000-4000-8000-000000000012';
+
 function mountManagement(mutate?: (path: string, options: RequestInit) => Response | Promise<Response>) {
   const organizations = [
     { id: 1, uuid: 'org-1', name: 'Kabul Exchange', slug: 'kabul', owner_id: 8, is_active: true },
@@ -226,7 +229,7 @@ function mountManagement(mutate?: (path: string, options: RequestInit) => Respon
       permissions: ['roles:read', 'roles:create', 'roles:update', 'roles:delete', 'organizations.members.read', 'organizations.members.manage'] });
     if (path.endsWith('/organizations')) return Response.json({ success: true, data: organizations });
     if (path.endsWith('/roles')) return Response.json({ data: Array.from({ length: 12 }, (_, index) => ({ id: index, uuid: 'role-' + index, name: index === 0 ? 'Owner' : 'Role ' + index, description: 'Description ' + index, is_system: index === 0 })) });
-    if (path.endsWith('/members')) return Response.json({ data: [{ id: 1, uuid: 'member-1', user_id: 8, is_active: true }, { id: 2, uuid: 'member-2', user_id: 12, is_active: false }] });
+    if (path.endsWith('/members')) return Response.json({ data: [{ id: 1, uuid: 'member-1', user_id: 8, user_uuid: ownerUserUuid, is_active: true }, { id: 2, uuid: 'member-2', user_id: 12, user_uuid: memberUserUuid, is_active: false }] });
     return Response.json({ success: true, data: [] });
   }));
   setTokens({ access: 'access', refresh: 'refresh' });
@@ -271,19 +274,19 @@ test('role and member tables replace selectors, support search and paging, and p
   const members = await screen.findByRole('grid', { name: 'Members' });
   expect(screen.queryByRole('group', { name: 'Organization' })).toBeNull();
   expect(within(members).getByText('Inactive')).toBeTruthy();
-  const ownerRow = within(members).getByText('8').closest('[role="row"]')!;
+  const ownerRow = within(members).getByText(ownerUserUuid).closest('[role="row"]')!;
   expect(within(ownerRow).queryByRole('button')).toBeNull();
   expect(within(members).getByRole('button', { name: 'Activate member' })).toBeTruthy();
-  const userColumn = within(members).getByRole('columnheader', { name: /User ID/ });
+  const userColumn = within(members).getByRole('columnheader', { name: /User UUID/ });
   fireEvent.click(userColumn);
   await waitFor(() => expect(userColumn.getAttribute('aria-sort')).toBe('ascending'));
   fireEvent.click(userColumn);
   await waitFor(() => expect(userColumn.getAttribute('aria-sort')).toBe('descending'));
   const firstMember = within(members).getAllByRole('row')[1];
-  expect(firstMember.querySelector('[data-field="user_id"]')?.textContent).toBe('12');
+  expect(firstMember.querySelector('[data-field="user_uuid"]')?.textContent).toBe(memberUserUuid);
 });
 
-test('custom field validation blocks bad organization slugs, UUIDs, role names, and member IDs', async () => {
+test('custom field validation blocks bad organization slugs, UUIDs, role names, and user UUIDs', async () => {
   const mutations = mountManagement();
   await screen.findByRole('button', { name: 'Kabul Exchange' });
   fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
@@ -314,10 +317,17 @@ test('custom field validation blocks bad organization slugs, UUIDs, role names, 
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   fireEvent.click(screen.getByRole('button', { name: 'Members' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Add member' }));
-  fireEvent.change(screen.getByRole('textbox', { name: /^User ID/ }), { target: { value: '1.5' } });
+  fireEvent.change(screen.getByRole('textbox', { name: /^User UUID/ }), { target: { value: '1.5' } });
   submit();
-  expect(screen.getByText('Enter a positive whole-number user ID.')).toBeTruthy();
+  expect(screen.getByText('Enter a valid UUID, including all four hyphens.')).toBeTruthy();
   expect(mutations).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByRole('textbox', { name: /^User UUID/ }), { target: { value: memberUserUuid } });
+  submit();
+  await waitFor(() => expect(mutations).toHaveBeenCalledWith(
+    expect.stringMatching(/\/members$/),
+    expect.objectContaining({ method: 'POST', body: JSON.stringify({ user_uuid: memberUserUuid }) }),
+  ));
 });
 
 test('server validation appears below the matching field and keeps entered values', async () => {
