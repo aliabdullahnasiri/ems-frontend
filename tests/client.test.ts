@@ -32,3 +32,21 @@ test('validation paths preserve array indexes and reject prototype paths', async
  await assert.rejects(request('/test'),(error: unknown)=> { const e=error as {fields:Record<string,string>}; assert.equal(e.fields['items.0.amount'],'Invalid amount'); assert.equal(Object.keys(e.fields).length,1); return true; });
 });
 test('binary responses remain binary',async()=>{globalThis.fetch=async()=>new Response('a,b\n1,2');assert.equal(await (await request<Blob>('/export',{},true)).text(),'a,b\n1,2');});
+
+test('workspace switches abort pending reads and invalidate old financial retries', async () => {
+ const { invalidateWorkspace } = await import('../src/api/client.ts');
+ setTokens({access:'a',refresh:'r'});
+ let signal: AbortSignal | undefined;
+ let finish!: (response: Response) => void;
+ globalThis.fetch = async (_url, options) => {
+  signal = options?.signal ?? undefined;
+  return new Promise<Response>(resolve => { finish = resolve; });
+ };
+ const read = request('/shops');
+ const oldIntent = financialIntent('/payments', {shop_id: 7});
+ invalidateWorkspace();
+ assert.equal(signal?.aborted, true);
+ finish(Response.json({data: [{id:7}]}));
+ await assert.rejects(read);
+ await assert.rejects(oldIntent.submit(), /previous session/);
+});
