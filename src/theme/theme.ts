@@ -4,6 +4,8 @@ import {
   type Theme,
 } from "@mui/material/styles";
 
+const outlinedInputBlockPadding = "13px";
+
 const common: ThemeOptions = {
   transitions: {
     duration: { shortest: 120, shorter: 160, short: 180, standard: 220, complex: 260, enteringScreen: 240, leavingScreen: 160 },
@@ -99,6 +101,11 @@ const common: ThemeOptions = {
           borderRadius: 12,
           backgroundColor: "transparent",
 
+          "&.MuiInputBase-multiline": {
+            padding: `${outlinedInputBlockPadding} 14px`,
+            "& .MuiOutlinedInput-input": { padding: 0 },
+          },
+
           transition:
             "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
 
@@ -133,7 +140,7 @@ const common: ThemeOptions = {
         },
 
         input: {
-          padding: "13px 14px",
+          padding: `${outlinedInputBlockPadding} 14px`,
         },
       },
     },
@@ -142,6 +149,10 @@ const common: ThemeOptions = {
       styleOverrides: {
         root: {
           color: "text.secondary",
+
+          "&.MuiInputLabel-outlined.MuiInputLabel-formControl:not(.MuiInputLabel-shrink)": {
+            transform: `translate(14px, var(--outlined-label-offset, ${outlinedInputBlockPadding})) scale(1)`,
+          },
 
           "&.Mui-focused": {
             color: "primary.main",
