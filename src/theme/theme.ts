@@ -151,7 +151,8 @@ const common: ThemeOptions = {
           color: "text.secondary",
 
           "&.MuiInputLabel-outlined.MuiInputLabel-formControl:not(.MuiInputLabel-shrink)": {
-            transform: `translate(14px, var(--outlined-label-offset, ${outlinedInputBlockPadding})) scale(1)`,
+            // Keep the horizontal translation separate so the RTL plugin can flip it.
+            transform: `translateX(14px) translateY(var(--outlined-label-offset, ${outlinedInputBlockPadding})) scale(1)`,
           },
 
           "&.Mui-focused": {
