@@ -9137,15 +9137,31 @@
       "AddMemberRequest": {
         "properties": {
           "user_id": {
-            "type": "integer",
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "User Id"
+          },
+          "user_uuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Uuid"
           }
         },
         "type": "object",
-        "required": [
-          "user_id"
-        ],
         "title": "AddMemberRequest"
       },
       "AgentObligationData": {
@@ -13425,6 +13441,11 @@
             "type": "integer",
             "title": "User Id"
           },
+          "user_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Uuid"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
@@ -13446,6 +13467,7 @@
           "uuid",
           "organization_id",
           "user_id",
+          "user_uuid",
           "is_active",
           "created_at",
           "updated_at"

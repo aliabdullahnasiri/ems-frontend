@@ -1,6 +1,6 @@
 // Generated from backend OpenAPI. Do not edit manually.
 // Decimal input unions permit numbers in the backend; frontend financial forms MUST send string amounts.
-export type AddMemberRequest = { "user_id": number };
+export type AddMemberRequest = { "user_id"?: number | null; "user_uuid"?: string | null };
 export type AgentObligationData = { "id": number; "uuid": string; "agent_id": number; "hawala_id": number | null; "source_entry_id": number; "currency_id": number; "currency": string; "direction": string; "kind": string; "original_amount": string; "settled_amount": string; "remaining_amount": string; "remaining_book_afn": string; "is_cancelled": boolean; "settlements": (Record<string, unknown>)[] };
 export type AgentObligationsResponse = { "message"?: string | null; "success"?: boolean; "data"?: (AgentObligationData)[] | null };
 export type AgentReversalResponse = { "message"?: string | null; "success"?: boolean; "data"?: EntryData | null };
@@ -90,7 +90,7 @@ export type LoginData = { "requires_2fa"?: boolean; "access_token"?: string | nu
 export type LoginRequest = { "email": string; "password": string };
 export type LoginResponse = { "message"?: string | null; "success"?: boolean; "data"?: LoginData | null };
 export type LogoutResponse = { "message"?: string | null; "success"?: boolean; "data"?: null };
-export type MembershipData = { "id": number; "uuid": string; "organization_id": number; "user_id": number; "is_active": boolean; "created_at": string; "updated_at": string };
+export type MembershipData = { "id": number; "uuid": string; "organization_id": number; "user_id": number; "user_uuid": string; "is_active": boolean; "created_at": string; "updated_at": string };
 export type MembershipResponse = { "message"?: string | null; "success"?: boolean; "data"?: MembershipData | null };
 export type MembershipsResponse = { "message"?: string | null; "success"?: boolean; "data"?: (MembershipData)[] | null };
 export type OTPEnableRequest = { "code": string };
