@@ -1,6 +1,7 @@
+import { waitForSubmissionFeedback } from '../../utils/submissionDelay';
 import { createContext, useContext, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Tooltip, type TextFieldProps } from '@mui/material';
-import { CloseRounded } from '@mui/icons-material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Tooltip, Typography, type TextFieldProps } from '@mui/material';
+import { AttachFileOutlined, CloseRounded, UploadFileOutlined } from '@mui/icons-material';
 import { ApiError } from '../../api/client';
 import { useAuthText } from '../auth/text';
 import { useLocale } from '../../i18n/locale';
@@ -18,9 +19,43 @@ export function WorkspaceFileField() {
   const t = useAuthText();
   const { errors, clear } = useContext(FormContext);
   const id = useId();
-  return <Box><input type="file" aria-label={t('uploadFile')} name="file" required accept="application/pdf,image/png,image/jpeg"
-    aria-invalid={!!errors.file} aria-describedby={errors.file ? id : undefined} onChange={() => clear('file')} />
-    {errors.file && <Box id={id} role="alert" sx={{ mt: 1, color: 'error.main', fontSize: 13 }}>{errors.file}</Box>}</Box>;
+  const [filename, setFilename] = useState('');
+  return <Box>
+    <Stack component="label" direction="row" spacing={2} sx={{
+      position: 'relative', alignItems: 'center', p: 2, border: 1, borderStyle: 'dashed',
+      borderRadius: '12px', borderColor: errors.file ? 'error.main' : 'divider',
+      bgcolor: 'action.hover', cursor: 'pointer',
+      '&:has(input:not(:disabled)):hover': { borderColor: errors.file ? 'error.main' : 'primary.main' },
+      '&:focus-within': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
+      '&:has(input:disabled)': { cursor: 'default', opacity: 0.65 },
+    }}>
+      <Box sx={{
+        display: 'grid', placeItems: 'center', width: 44, height: 44, flexShrink: 0,
+        border: 1, borderColor: 'divider', borderRadius: '10px', color: 'primary.main',
+      }}>
+        {filename ? <AttachFileOutlined /> : <UploadFileOutlined />}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle2" noWrap dir={filename ? 'auto' : undefined} title={filename || undefined}>
+          {filename || t('chooseUploadFile')}
+        </Typography>
+        <Typography id={id} variant="body2" color="text.secondary">
+          {filename ? t('replaceUploadFile') : t('uploadFileFormats')}
+        </Typography>
+      </Box>
+      <Box component="input" type="file" name="file" required accept="application/pdf,image/png,image/jpeg"
+        aria-label={t('uploadFile')} aria-invalid={!!errors.file}
+        aria-describedby={errors.file ? id + ' ' + id + '-error' : id}
+        onChange={event => {
+          setFilename(event.currentTarget.files?.[0]?.name ?? '');
+          clear('file');
+        }}
+        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'inherit' }} />
+    </Stack>
+    {errors.file && <Typography id={id + '-error'} role="alert" variant="body2" color="error.main" sx={{ mt: 1 }}>
+      {errors.file}
+    </Typography>}
+  </Box>;
 }
 
 export function Edit({ title, children, save, done }: { title: string; children?: ReactNode; save: (data: FormData) => Promise<unknown>; done?: () => void }) {
@@ -32,6 +67,13 @@ export function Edit({ title, children, save, done }: { title: string; children?
   const dialog = useContext(DialogContext);
   function validate(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) {
     if (input.disabled || !input.name || ['checkbox', 'radio', 'submit', 'button'].includes(input.type)) return '';
+    if (input instanceof HTMLInputElement && input.type === 'file') {
+      const file = input.files?.[0];
+      if (!file) return input.required ? t('requiredField') : '';
+      if (file.size === 0 || file.size > 5 * 1024 * 1024) return t('invalidFileSize');
+      if (!['application/pdf', 'image/png', 'image/jpeg'].includes(file.type)) return t('invalidFileType');
+      return '';
+    }
     const value = input.value.trim();
     if (input.required && !value) return t('requiredField');
     if (!value) return '';
@@ -39,7 +81,6 @@ export function Edit({ title, children, save, done }: { title: string; children?
     if (input.name === 'slug' && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) return t('invalidSlug');
     if (['uuid', 'user_uuid'].includes(input.name) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return t('invalidUuid');
     if (input.name === 'preferred_language' && !['en', 'fa', 'ps'].includes(value)) return t('invalidLanguage');
-    if (input instanceof HTMLInputElement && input.type === 'file' && input.files?.[0] && !['application/pdf', 'image/png', 'image/jpeg'].includes(input.files[0].type)) return t('invalidFileType');
     return '';
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -55,8 +96,12 @@ export function Edit({ title, children, save, done }: { title: string; children?
     setErrors(issues); setMessage('');
     if (Object.keys(issues).length) { (form.elements.namedItem(Object.keys(issues)[0]) as HTMLElement | null)?.focus(); return; }
     const data = new FormData(form);
+    for (const input of form.querySelectorAll<HTMLInputElement>('input[type="file"][name]:not(:disabled)')) {
+      const file = input.files?.[0];
+      if (file) data.set(input.name, file);
+    }
     lock.current = true; setBusy(true); dialog?.setBusy(true);
-    try { await save(data); done?.(); dialog?.close(); }
+    try { await waitForSubmissionFeedback(); await save(data); done?.(); dialog?.close(); }
     catch (failure) {
       if (failure instanceof ApiError) {
         setErrors(failure.fields);
@@ -78,13 +123,13 @@ export function Edit({ title, children, save, done }: { title: string; children?
     </FormContext.Provider>{message && <Alert severity="error" sx={{ mt: 2 }}>{message}</Alert>}</DialogContent>
     <DialogActions sx={{ px: 3, py: 2, borderTop: 1, borderColor: 'divider', gap: 1 }}>
       {dialog && <Button color="inherit" disabled={busy} onClick={dialog.close}>{t('cancel')}</Button>}
-      <Button type="submit" variant="contained" color={dialog?.destructive ? 'error' : 'primary'} loading={busy}>{title}</Button>
+      <Button type="submit" variant="contained" color={dialog?.destructive ? 'error' : 'primary'} loading={busy} disabled={busy}>{title}</Button>
     </DialogActions>
   </Box>;
 }
 
-export function ActionDialog({ title, children, icon, destructive = false, primary = false, fullWidth = false, compact = false }: {
-  title: string; children: ReactNode; icon?: ReactNode; destructive?: boolean; primary?: boolean; fullWidth?: boolean; compact?: boolean;
+export function ActionDialog({ title, children, icon, destructive = false, primary = false, fullWidth = false, compact = false, tabIndex }: {
+  title: string; children: ReactNode; icon?: ReactNode; destructive?: boolean; primary?: boolean; fullWidth?: boolean; compact?: boolean; tabIndex?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -92,7 +137,7 @@ export function ActionDialog({ title, children, icon, destructive = false, prima
   const { t } = useLocale();
   const close = () => setOpen(false);
   return <>
-    {compact && icon ? <Tooltip title={title}><IconButton aria-label={title} color={destructive ? 'error' : 'primary'} onClick={() => setOpen(true)} sx={{ width: 40, height: 40 }}>{icon}</IconButton></Tooltip> :
+    {compact && icon ? <Tooltip title={title}><IconButton aria-label={title} tabIndex={tabIndex} color={destructive ? 'error' : 'primary'} onClick={() => setOpen(true)} sx={{ width: 40, height: 40 }}>{icon}</IconButton></Tooltip> :
       <Button variant={primary ? 'contained' : 'outlined'} color={destructive ? 'error' : 'primary'} fullWidth={fullWidth} startIcon={icon} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>{title}</Button>}
     <Dialog open={open} onClose={() => { if (!busy) close(); }} fullWidth maxWidth="sm" aria-labelledby={id}>
       <DialogTitle id={id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, pb: 1 }}>{title}<IconButton aria-label={t('close')} disabled={busy} onClick={close} edge="end"><CloseRounded /></IconButton></DialogTitle>
