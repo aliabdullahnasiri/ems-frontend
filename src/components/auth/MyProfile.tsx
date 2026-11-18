@@ -1,5 +1,8 @@
+import dayjs from 'dayjs';
+import { DateInput } from '../shared/DateInput';
+import { dateFormat, parseDate } from '../shared/dateValue';
 import { useRef, useState } from 'react';
-import { Alert, Avatar, Box, Button, Container, IconButton, Tooltip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Container, IconButton, Tooltip, Divider, Paper, Stack, Typography } from '@mui/material';
 import { ArrowBackOutlined, SettingsOutlined, ShieldOutlined } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 import { Link } from 'react-router-dom';
@@ -19,6 +22,8 @@ import { useAuthText } from './text';
 export function MyProfile() {
  const { user, reload } = useSession();
  const t = useAuthText();
+ const [birthday, setBirthday] = useState(() => parseDate(user?.birthday));
+ const [invalidBirthday, setInvalidBirthday] = useState(false);
  const { t: ui } = useLocale();
  const [, dispatch] = useMaterialController();
  const lock = useRef(false);
@@ -37,10 +42,11 @@ export function MyProfile() {
     event.preventDefault(); if (lock.current) return;
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    values.birthday = birthday?.isValid() ? birthday.format(dateFormat) : '';
     const issues: Record<string, string> = {};
     for (const key of [...names, 'user_name'] as const) if ((values[key] || '').trim().length > 50) issues[key] = t('maximumLength').replace('{count}', '50');
     for (const key of ['user_name']) if (!values[key]?.trim()) issues[key] = t('requiredField');
-    if (values.birthday && !/^\d{4}-\d{2}-\d{2}$/.test(values.birthday)) issues.birthday = t('invalidDate');
+    if (invalidBirthday) issues.birthday = t('invalidDate');
     setErrors(issues); setError(undefined); setSaved(false);
     if (Object.keys(issues).length) { (form.elements.namedItem(Object.keys(issues)[0]) as HTMLElement | null)?.focus(); return; }
     const body: UpdateUserRequest = {};
@@ -57,7 +63,15 @@ export function MyProfile() {
     <Box><Typography component="h2" variant="h6">{t('personalDetails')}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{t('profileHelp')}</Typography></Box>
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
      {names.map(key => <FormInput key={key} name={key} label={t(key)} defaultValue={user?.[key] || ''} maxLength={50} disabled={busy} error={errors[key]} autoComplete={key === 'first_name' ? 'given-name' : key === 'middle_name' ? 'additional-name' : 'family-name'} onChange={() => setErrors(current => ({ ...current, [key]: '' }))}/>)}
-     <TextField name="birthday" type="date" label={t('birthday')} defaultValue={user?.birthday || ''} disabled={busy} error={!!errors.birthday} helperText={errors.birthday} slotProps={{ inputLabel: { shrink: true }, htmlInput: { dir: 'ltr' } }}/>
+     <DateInput label={t('birthday')} value={birthday} maxDate={dayjs()} disabled={busy}
+      error={invalidBirthday ? t('invalidDate') : errors.birthday}
+      onChange={(date, validationError) => {
+       setBirthday(date);
+       setInvalidBirthday(!!validationError);
+       setErrors(current => ({ ...current, birthday: '' }));
+       setSaved(false);
+       setError(undefined);
+      }}/>
     </Box>
     <Divider/><Typography component="h2" variant="h6">{t('accountDetails')}</Typography>
     <FormInput name="user_name" label={t('user_name')} defaultValue={user?.user_name || ''} maxLength={50} required disabled={busy} error={errors.user_name} autoComplete="username" dir="ltr" onChange={() => setErrors(current => ({ ...current, user_name: '' }))}/>
