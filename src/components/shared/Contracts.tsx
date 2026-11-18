@@ -1,3 +1,5 @@
+import { DateInput } from './DateInput';
+import { dateFormat, parseDate } from './dateValue';
 import { useLocale } from "../../i18n/locale";
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Table, TableBody, TableCell, TableHead, TableRow, TablePagination, CircularProgress } from '@mui/material';
 import type { ReactNode } from 'react';
@@ -11,7 +13,15 @@ export function RequestState({ loading, error, empty }: { loading?: boolean; err
 }
 export function CurrencyInput({ value, currency, onChange, error }: { value: string; currency: string; onChange: (value: string) => void; error?: string }) { const {t} = useLocale(); return <TextField label={`${t("amount")} (${currency})`} value={value} onChange={e => onChange(e.target.value)} error={!!error} helperText={error} slotProps={{ htmlInput: { inputMode: 'decimal', dir: 'ltr' } }} />; }
 export function Search({ value, onChange }: { value: string; onChange: (value: string) => void }) { const {t} = useLocale(); return <TextField label={t("search")} type="search" value={value} onChange={e => onChange(e.target.value)} />; }
-export function DateFilters({ from, to, onChange }: { from: string; to: string; onChange: (from: string, to: string) => void }) { const {t} = useLocale(); return <Stack direction={{ xs: "column", sm: "row" }} spacing={2}><TextField label={t("from")} type="date" value={from} onChange={e => onChange(e.target.value, to)} slotProps={{ inputLabel: { shrink: true } }} /><TextField label={t("to")} type="date" value={to} onChange={e => onChange(from, e.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Stack>; }
+export function DateFilters({ from, to, onChange }: { from: string; to: string; onChange: (from: string, to: string) => void }) {
+ const { t } = useLocale();
+ return <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+  <DateInput label={t('from')} value={parseDate(from)} maxDate={parseDate(to) ?? undefined}
+   onChange={(date, error) => { if (!error) onChange(date?.format(dateFormat) ?? '', to); }}/>
+  <DateInput label={t('to')} value={parseDate(to)} minDate={parseDate(from) ?? undefined}
+   onChange={(date, error) => { if (!error) onChange(from, date?.format(dateFormat) ?? ''); }}/>
+ </Stack>;
+}
 export function Confirmation({ open, title, children, onConfirm, onClose, busy }: { open: boolean; title: string; children: ReactNode; onConfirm: () => void; onClose: () => void; busy?: boolean }) { const {t} = useLocale(); return <Dialog open={open} onClose={busy ? undefined : onClose}><DialogTitle>{title}</DialogTitle><DialogContent>{children}</DialogContent><DialogActions><Button disabled={busy} onClick={onClose}>{t("cancel")}</Button><Button disabled={busy} onClick={onConfirm}>{t("confirm")}</Button></DialogActions></Dialog>; }
 export function PaginatedTable({ headers, rows, count, page, onPage }: { headers: string[]; rows: { key: string; cells: ReactNode[] }[]; count: number; page: number; onPage: (page: number) => void }) { return <div style={{ overflowX: 'auto' }}><Table><TableHead><TableRow>{headers.map(h => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead><TableBody>{rows.map(r => <TableRow key={r.key}>{r.cells.map((cell, i) => <TableCell key={i}>{cell}</TableCell>)}</TableRow>)}</TableBody></Table><RequestState empty={!rows.length} /><TablePagination component="div" count={count} page={page} rowsPerPage={25} rowsPerPageOptions={[25]} onPageChange={(_, value) => onPage(value)} /></div>; }
 export function Receipt({ reference, children }: { reference: string; children: ReactNode }) { return <article className="receipt"><h2>EMS</h2><p><bdi>{reference}</bdi></p>{children}</article>; }
