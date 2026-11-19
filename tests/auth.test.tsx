@@ -138,7 +138,7 @@ test('profile saves only changed fields and refreshes the signed-in identity', a
   return envelope({organization_id:1,permissions:[]});
  });
  vi.stubGlobal('fetch',fetcher);mount('/profile');await screen.findByText('Ali Nasiri');
- expect((screen.getByLabelText(/^Email/) as HTMLInputElement).readOnly).toBe(true);
+ expect((screen.getByLabelText(/^Email/) as HTMLInputElement).disabled).toBe(true);
  fireEvent.change(screen.getByLabelText(/^First name/),{target:{value:'Ahmad'}});
  fireEvent.click(screen.getByRole('button',{name:'Save changes'}));
  await screen.findByText('Profile updated.');await screen.findByText('Ahmad Nasiri');
