@@ -1,10 +1,13 @@
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 
 const key = 'ems.auth.session';
 const envelope = (data: unknown) => Response.json({ success: true, data });
 
 afterEach(() => {
+ cleanup();
  vi.unstubAllGlobals();
+ localStorage.clear();
  sessionStorage.clear();
  vi.resetModules();
 });
@@ -94,4 +97,43 @@ test('unavailable storage does not prevent an in-memory login or logout', async 
  expect(client.hasSession()).toBe(true);
  client.setTokens();
  expect(client.hasSession()).toBe(false);
+});
+
+test('a new session restores the account’s last organization before exposing its context', async () => {
+ const { auth, acceptLogin } = await import('../src/api/auth');
+ const { rememberOrganization, selectOrganization } = await import('../src/api/organizationSelection');
+ const { SessionProvider, useSession } = await import('../src/context/Session');
+ const login = { access_token: 'access', refresh_token: 'refresh', requires_2fa: false };
+ let selected = false;
+ const fetcher = vi.fn(async (url: unknown, init?: RequestInit) => {
+  const path = String(url);
+  if (path.endsWith('/auth/me')) return envelope({ uuid: 'operator' });
+  if (path.endsWith('/auth/logout')) {
+   selected = false;
+   return envelope(null);
+  }
+  if (path.endsWith('/auth/organizations/workspace/select') && init?.method === 'POST') {
+   selected = true;
+   return envelope(null);
+  }
+  if (path.endsWith('/auth/context')) {
+   return selected ? envelope({ organization_id: 42 }) : new Response(null, { status: 403 });
+  }
+  throw new Error('Unexpected request: ' + path);
+ });
+ vi.stubGlobal('fetch', fetcher);
+ acceptLogin(login);
+ await selectOrganization('workspace');
+ rememberOrganization('operator', 'workspace');
+ await auth.logout();
+ acceptLogin(login);
+
+ function CurrentOrganization() {
+  const { context } = useSession();
+  return <output>{context?.organization_id}</output>;
+ }
+
+ render(<SessionProvider><CurrentOrganization/></SessionProvider>);
+ expect(await screen.findByText('42')).toBeTruthy();
+ expect(fetcher.mock.calls.filter(([url]) => String(url).endsWith('/select'))).toHaveLength(2);
 });
