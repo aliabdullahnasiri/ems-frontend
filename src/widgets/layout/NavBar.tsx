@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { AppBar, Box, Breadcrumbs, Button, Divider, IconButton, Link as MuiLink, Menu, MenuItem, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
-import { CheckRounded, DarkModeOutlined, DashboardOutlined, FullscreenExitRounded, FullscreenRounded, LanguageOutlined, LightModeOutlined, MenuRounded, PersonOutlined, SearchRounded, SettingsOutlined, ShieldOutlined } from '@mui/icons-material';
+import { CheckRounded, DarkModeOutlined, DashboardOutlined, FullscreenExitRounded, FullscreenRounded, LanguageOutlined, LightModeOutlined, MenuRounded, PersonOutlined, SearchRounded, ViewSidebarOutlined, SettingsOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Link, useLocation } from 'react-router-dom';
 import { alpha } from '@mui/material/styles';
 import { SpotlightSearch } from '@/components/shared/SpotlightSearch';
@@ -8,7 +8,7 @@ import { AccountMenu } from '@/components/auth/AccountMenu';
 import { useAuthText } from '@/components/auth/text';
 import { useLocale } from '@/i18n/locale';
 import { useMaterialController } from '@/context/useMaterialController';
-import { setDarkMode, setOpenConfigurator, setOpenSidenav } from '@/context/materialActions';
+import { setDarkMode, setMiniSidenav, setOpenConfigurator, setOpenSidenav } from '@/context/materialActions';
 import { useSession } from '@/context/Session';
 import { routes } from '@/constants/routes';
 import type { RouteItem } from '@/constants/routes';
@@ -20,7 +20,7 @@ export default function Navbar() {
  const { t, locale, setLocale } = useLocale();
  const text = useAuthText();
  const [controller, dispatch] = useMaterialController();
- const { openSidenav, darkMode, fixedNavbar } = controller;
+ const { openSidenav, miniSidenav, darkMode, fixedNavbar } = controller;
  const { context } = useSession();
  const { pathname } = useLocation();
  const languageId = useId();
@@ -52,6 +52,10 @@ export default function Navbar() {
   { id: 'light-mode', label: text('lightTheme'), icon: LightModeOutlined, keywords: 'light white mode theme', onSelect: () => setDarkMode(dispatch, false) },
   ...(document.fullscreenEnabled ? [{ id: 'fullscreen', label: text(fullscreen ? 'exitFullscreen' : 'enterFullscreen'), icon: fullscreen ? FullscreenExitRounded : FullscreenRounded, keywords: 'fullscreen full screen toggle', onSelect: toggleFullscreen }] : []),
   { id: 'sidebar', label: text(openSidenav ? 'closeNavigation' : 'openNavigation'), icon: MenuRounded, keywords: 'toggle sidebar side bar navigation', onSelect: () => setOpenSidenav(dispatch, !openSidenav) },
+  { id: 'mini-sidebar', label: t('mini'), icon: ViewSidebarOutlined, keywords: 'toggle mini sidebar compact collapse expand navigation', onSelect: () => {
+   setMiniSidenav(dispatch, !miniSidenav);
+   if (!openSidenav) setOpenSidenav(dispatch, true);
+  } },
   { id: 'settings', label: t('settings'), icon: SettingsOutlined, keywords: 'open settings preferences', onSelect: () => setOpenConfigurator(dispatch, true) },
  ];
  const iconStyle = { width: 42, height: 42, color: 'text.secondary', flexShrink: 0 };
