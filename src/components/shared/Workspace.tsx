@@ -10,6 +10,7 @@ import { alpha } from '@mui/material/styles';
 import { ApiError, invalidateWorkspace, request, sessionVersion } from '../../api/client';
 import type { MembershipData, OrganizationData, PermissionData, RoleData, SettingsData } from '../../api/generated';
 import { useSession } from '../../context/Session';
+import { rememberOrganization, selectOrganization } from '../../api/organizationSelection';
 import { useMaterialController } from '../../context/useMaterialController';
 import { setOpenConfigurator } from '../../context/materialActions';
 import Configurator from '../../widgets/layout/Configurator';
@@ -65,7 +66,7 @@ function OrganizationCards({ rows, currentId, userId, disabled, select }: { rows
 }
 
 export function Workspace() {
-  const { context, contextError, loading: contextLoading } = useSession();
+  const { user, context, contextError, loading: contextLoading } = useSession();
   const t = useAuthText();
   const { t: ui } = useLocale();
   const [, dispatch] = useMaterialController();
@@ -88,9 +89,10 @@ export function Workspace() {
     setSwitching(true); setSwitchError('');
     const epoch = sessionVersion();
     try {
-      await write('/auth/organizations/' + encodeURIComponent(id) + '/select', 'POST');
+      await selectOrganization(id);
       setPending(undefined);
       if (sessionVersion() === epoch) {
+        if (user?.uuid) rememberOrganization(user.uuid, id);
         invalidateWorkspace();
         reloadPage();
       }
