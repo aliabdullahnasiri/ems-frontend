@@ -42,6 +42,7 @@ export function DateInput({ label, value, onChange, error, maxDate, minDate, dis
    minDate={minDate} maxDate={maxDate}
    onChange={(date, context) => onChange(date, context.validationError)}
    slotProps={{
+    openPickerButton: { edge: false },
     actionBar: { actions: ['clear', 'cancel', 'accept'] },
     textField: { fullWidth: true, ...(error ? { error: true, helperText: error } : {}) },
    }}/>
