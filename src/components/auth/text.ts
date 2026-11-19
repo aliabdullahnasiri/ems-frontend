@@ -45,6 +45,7 @@ const words = {
  deleteOrganizationHelp: ['Delete “{name}”? You will no longer be able to open this organization.', '«{name}» حذف شود؟ دیگر نمی‌توانید این سازمان را باز کنید.', '«{name}» ړنګه شي؟ تاسو به بیا دا اداره نشئ پرانیستلی.'],
  editRole: ['Edit role', 'ویرایش نقش', 'رول سم کړئ'],
  manageOrganizations: ['Manage organizations', 'مدیریت سازمان‌ها', 'ادارې تنظیم کړئ'],
+ activeMembers: ['Active members', 'اعضای فعال', 'فعال غړي'],
  shopsNav: ['Shops', 'صرافی‌ها', 'دوکانونه'],
  manageWorkspace: ['Manage workspace', 'مدیریت محیط کاری', 'کاري چاپېریال تنظیم کړئ'],
  transferOwner: ['Transfer ownership', 'انتقال مالکیت', 'مالکیت ولېږدوئ'],
