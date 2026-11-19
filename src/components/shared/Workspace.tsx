@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { AddRounded, ArrowBackRounded, BusinessOutlined, CheckCircleOutlineRounded, ContentCopyOutlined, DeleteOutlineRounded, DownloadOutlined, EditOutlined, GroupsOutlined, LoginRounded, SettingsOutlined, ShieldOutlined, StorefrontOutlined, DoNotDisturbOnOutlined, SwapHorizRounded, UploadFileOutlined, PersonRemoveOutlined, PersonOffOutlined, PersonAddAltOutlined, ManageAccountsOutlined } from '@mui/icons-material';
 import { Alert, Avatar, Box, Button, ButtonBase, Checkbox, Chip, Container, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, FormControlLabel, IconButton, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Portal, Skeleton, Snackbar, Stack, Tooltip, Typography } from '@mui/material';
 import type { GridColDef } from '@mui/x-data-grid';
+import { useResource } from './useResource';
 import { WorkspaceTable } from './WorkspaceTable';
 import { reloadPage } from '../../utils/navigation';
 import { alpha } from '@mui/material/styles';
@@ -19,44 +20,6 @@ import { OrganizationCardsSkeleton } from './PageSkeleton';
 import { ActionDialog, Edit, WorkspaceField, WorkspaceFileField } from './WorkspaceForms';
 type Shop = { id: number; uuid: string; name: string; is_active: boolean };
 type Option = { uuid: string; name: string };
-function useResource<T>(path: string, revision = 0, paginated = false) {
-  const [state, set] = useState<{
-    path: string;
-    revision: number;
-    data?: T;
-    error?: string;
-  }>();
-  useEffect(() => {
-    if (!path) return;
-    const controller = new AbortController();
-    async function load() {
-      const options = { signal: controller.signal };
-      if (!paginated) return request<T>(path, options);
-      const rows: unknown[] = [];
-      for (;;) {
-        const response = await request<unknown[] | { data: unknown[] }>(
-          path + "?limit=100&offset=" + rows.length,
-          options,
-        );
-        const page = Array.isArray(response) ? response : response.data;
-        rows.push(...page);
-        if (page.length < 100) return rows as T;
-      }
-    }
-    load()
-      .then((data) => {
-        if (!controller.signal.aborted) set({ path, revision, data });
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted)
-          set({ path, revision, error: String(error.message) });
-      });
-    return () => controller.abort();
-  }, [path, revision, paginated]);
-  return state?.path === path && state.revision === revision
-    ? state
-    : undefined;
-}
 function write(path: string, method: string, data?: unknown) {
   return request(path, {
     method,
