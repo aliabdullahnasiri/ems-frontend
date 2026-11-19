@@ -16,5 +16,5 @@ export default function FormInput({ label, error, helperText, endAdornment, minL
    input: endAdornment ? { endAdornment: <InputAdornment position="end">{endAdornment}</InputAdornment> } : undefined,
    formHelperText: { role: error ? 'alert' : undefined },
   }}
-  sx={{ '--outlined-label-offset': 'calc(27px - 0.71875em)', '& .MuiOutlinedInput-root': { minHeight: 54, borderRadius: '10px' }, '& .MuiInputLabel-asterisk': { display: 'none' } }}/ >;
+  sx={{ '--outlined-label-offset': 'calc(27px - 0.71875em)', '& .MuiOutlinedInput-root': { minHeight: 54, borderRadius: '10px', '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }, '& .MuiInputLabel-asterisk': { display: 'none' } }}/ >;
 }
